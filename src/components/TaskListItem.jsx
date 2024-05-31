@@ -18,7 +18,7 @@ export default function TaskListItem({task, index}){
     return(
         <Row className="m-0 p-3 border">
             <Col xs={11} className="p-0">
-                {task} 
+                {task.label} 
             </Col>
             <Col xs={1} onClick={() => taskActions({type: "remove" , index})} className="p-0 d-flex justify-content-center align-items-center " 
             onMouseEnter={handleMouseEnter} 
