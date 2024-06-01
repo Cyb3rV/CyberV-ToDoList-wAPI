@@ -8,7 +8,7 @@ export default function TaskList(){
     return(
         <>
             {tasks.map((task, index) => (
-                <TaskListItem key={index} task={task} index={index}/>
+                <TaskListItem key={index} task={task}/>
             )
             )}
         </>

@@ -1,54 +1,54 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import TaskContext from "./TaskContext";
 import { FaPlus } from "react-icons/fa6";
 import { Form, Row, Col } from "react-bootstrap";
 
-let prevTasksLength = "";
 
 export default function TaskInput(){
-    const {tasks, taskActions} = useContext(TaskContext);
-    const [currentTask, setCurrentTask] = useState({});
+    const {tasks, taskActions, userCreated, setUserCreated} = useContext(TaskContext);
 
-    
+    const taskRef = useRef();
 
-    useEffect(() => {prevTasksLength = tasks.length} , [])
-
-    
-    useEffect(() => {
-      //Empty the form every time a new task is added
-      if(tasks.length === prevTasksLength + 1){
-        setCurrentTask({            
-                        label: "",
-                        is_done: false
-                      });
-        prevTasksLength = tasks.length;
-      }
-      //If, on the other hand an action is removed, update the value of prevTasksLength
-      else if(tasks.length < prevTasksLength){
-        prevTasksLength = tasks.length;
-      }
-    }, [tasks]);
-   
-
-    function handleAddTask(){
-      console.log(currentTask);
-      taskActions({type: "add", payload: currentTask});
+    const handleAddTask = async (event) => {
+      event.preventDefault();
+      if(userCreated === true){
+        try{
+            await taskActions({type: "add", payload:{
+                actions: taskActions,
+                todo: {
+                    label: taskRef.current.value,
+                    is_done: false
+                }
+              }})
+              taskRef.current.value = "";
+        }
+        catch(error){
+            console.error(error)
+        }
     }
-
-      function handleChange(e){
-        setCurrentTask(
-          {
-            label: e.target.value,
-            is_done: false
-          });
-          console.log(currentTask.label);
+    else{
+        try {
+          await taskActions({ type: "createUser", payload: setUserCreated });
+          await taskActions({ type: "add", payload: { 
+              actions: taskActions,
+              todo: { 
+                  label: taskRef.current.value, 
+                  is_done: false 
+              } 
+          } });
+          taskRef.current.value = "";
+      } catch (error) {
+          console.error(error);
       }
+      }
+      
+  }
 
 
     return(
         <Row className="m-0 p-3 justify-content-between">
           <Col xs={10} className="p-0">
-            <Form.Control value={currentTask.label}  onChange={handleChange} className="p-0 border-0 shadow-none bg-transparent" placeholder={tasks.length > 0 ? "" : "No tasks, add a task"}/>
+            <Form.Control  className="p-0 border-0 shadow-none bg-transparent" placeholder={tasks.length > 0 ? "" : "No tasks, add a task"} ref={taskRef}/>
           </Col>
           <Col xs={1} onClick={handleAddTask} className="p-0 d-flex justify-content-center align-items-center">
             <FaPlus />

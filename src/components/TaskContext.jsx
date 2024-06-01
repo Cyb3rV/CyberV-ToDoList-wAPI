@@ -1,72 +1,157 @@
-import {useReducer, createContext, useEffect} from "react"; 
+import {useReducer, createContext, useEffect, useState, useRef} from "react"; 
 
 const TaskContext = createContext(null);
 
 
-const addTask = (task) => {
-  console.log("crear usuario");
-  fetch ('https://playground.4geeks.com/todo/todos/Cyb3rV',{
-    'method': 'POST',
-    'Content-Type': "application/json",
-    'BODY': JSON.stringify(task)
-  })
+const addTask = (info) => {
+  fetch('https://playground.4geeks.com/todo/todos/Cyb3rV', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(info.todo)
+})
   .then(response => response.json())
   .then(data => {
     console.log(data);
+    LoadData(info.actions);
   })
   .catch(error => {
     console.log('Error:', error);
   });
 };
 
-
-const updateTodos = (task) => {
-  fetch ('https://playground.4geeks.com/todo/todos/1',{
-  'method': 'POST',
-  'Content-Type': "application/json",
-  'BODY': JSON.stringify(task)
-})
-.then(response => response.json())
-.then(data => {
-//   setTasksList(data);
-  console.log(data);
-})
-.catch(error => {
-  console.log('Error:', error);
-});
+const deleteTask = (info) => {
+  console.log("removiendo task");
+  console.log(info);
+  fetch(`https://playground.4geeks.com/todo/todos/${info.index}`, {
+    method: 'DELETE',
+    headers: {
+        'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json().catch(() => ({})))
+  .then(data => {
+    console.log(data);
+    LoadData(info.actions);
+  })
+  .catch(error => {
+    console.log('Error:', error);
+  });
 };
+
+const deleteAll = (actions, setUserCreated) => {
+  console.log("removiendo user");
+  fetch(`https://playground.4geeks.com/todo/users/Cyb3rV`, {
+    method: 'DELETE',
+    headers: {
+        'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json().catch(() => ({})))
+  .then(data => {
+    console.log(data);
+    actions({type: "setData", payload: []});
+    setUserCreated(false);
+  })
+  .catch(error => {
+    console.log('Error:', error);
+  });
+};
+
+const CreateUser = (setUserCreated) => {
+  console.log("crear usuario");
+  fetch ('https://playground.4geeks.com/todo/users/Cyb3rV',{
+    'method': 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+  }
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log(data)
+    setUserCreated(true);
+  })
+  .catch(error => console.log('Error:', error));
+  };
+
+const LoadData = (actions) => {
+  fetch('https://playground.4geeks.com/todo/users/Cyb3rV', {
+    headers: {
+      'Content-Type': 'application/json',
+  }
+  })
+  .then(response => {
+    if (response.ok){
+      return response.json();
+    } 
+    else{
+        throw new Error('Failed to fetch data');
+      }
+    })
+  .then(data => {
+    console.log(data.todos);
+    actions({type: "setData", payload: data.todos});
+    return data.todos;
+  })
+  .catch(error => console.log('Error:', error));
+};
+
+const FirstLoadData = (actions, setUserCreated) => {
+  fetch('https://playground.4geeks.com/todo/users/Cyb3rV', {
+    headers: {
+      'Content-Type': 'application/json',
+  }
+  })
+  .then(response => {
+    if (response.ok){
+      
+      if(setUserCreated)
+        setUserCreated(true);
+      
+      return response.json();
+    } else{
+      if(response.status === 404)
+        CreateUser(setUserCreated);
+      else{
+        throw new Error('Failed to fetch data');
+      }
+    }
+  })
+  .then(data => {
+    console.log(data.todos);
+    actions({type: "setData", payload: data.todos});
+    return data.todos;
+  })
+  .catch(error => console.log('Error:', error));
+};
+
+
 
 
 const TaskReducer = (state, action) => {
     switch(action.type){
         case "add":
-            if(action.payload.label.trim() !== ""){
-                  if(!state.some(element => element.label === action.payload.label.trim())){
-
-                    updateTodos([...state , {
-                      label: action.payload.label.trim(),
-                      is_done: action.payload.is_done
-                  }]);
-                    return [...state , {
-                                          label: action.payload.label.trim(),
-                                          is_done: action.payload.is_done
-                                      }];
-                  }
-                else{
-                    alert("Cannot add a duplicate task");
-                    return state;
-                }
-            }    
-            else{
-                alert("Enter a valid task");
-                return state;
-            }
+          addTask(action.payload);
+          return state;
         case "remove":
-            let newState = [...state];
-            newState.splice(action.index, 1);
-            console.log(newState);
-            return newState;
-            
+          deleteTask(action.payload);
+          return state;
+        case "deleteAll":
+          deleteAll(action.payload.actions, action.payload.setUserCreated);
+          return state;
+        case "getData":
+          LoadData(action.payload.actions);
+          return state;
+        case "setData":
+          console.log("sending data");
+          return action.payload;
+        case "createUser":
+          CreateUser(action.payload);
+          return state;
+        case "firstGetData":
+          FirstLoadData(action.payload.actions, action.payload.setUserCreated);
+          return state;
         default:
             return state;
     }
@@ -75,126 +160,39 @@ const TaskReducer = (state, action) => {
 
 export function TaskProvider({children}){
     const [tasks, taskActions] = useReducer(TaskReducer, []);
+    const [userCreated, setUserCreated] = useState(false);
+
 
     useEffect(() => {
-      //deleteTodos();
-      getTodos();
-      getData();
-    },[]);
+      taskActions({type: "firstGetData", payload: {actions: taskActions , setUserCreated}});
+    },[])
 
-    // useEffect(() => {
-    //   //updateTodos();
-    // },[tasks]);
-
-
-    const getData = () => {
-      fetch('https://playground.4geeks.com/todo/users/Cyb3rV', {
-        'Content-Type': 'application/json'
-      })
-      .then(response => 
-         response.json()
-      )
-      
-      .then(data => {
-        console.log("get data");
-        console.log(data);
-      })
-      
-      .catch(error => {
-        console.log('Error', error);
-      });
-    };
-
-    const getTodos = () => {
-      fetch('https://playground.4geeks.com/todo/users/Cyb3rV', {
-        'Content-Type': 'application/json'
-      })
-      .then(response => {
-        if (!response.ok) {
-          if (response.status === 404) {
-            return createUser();
-          } else {
-            throw new Error('Failed to fetch todos');
-          }
-        } else {
-          return response.json();
-        }
-      })
-      // .then(data => {
-      //   data.forEach(element => {
-      //     taskActions({ type: "add", payload: element });
-      //   });
-      // })
-      .then(data => {
-        console.log(data);
-        if (Array.isArray(data)) { // Verificar si data es un array
-          data.forEach(element => {
-            taskActions({ type: "add", payload: element });
-          });
-        } else {
-          console.log('Error: data is not an array');
-        }
-      })
-      
-      .catch(error => {
-        console.log('Error', error);
-      });
-    };
-    
-  
-   const createUser = () => {
-    console.log("crear usuario");
-    fetch ('https://playground.4geeks.com/todo/users/Cyb3rV',{
-      'method': 'POST',
-      'Content-Type': "application/json",
-      'BODY': JSON.stringify([{            
-        label: "test",
-        is_done: false
-      }])
-    })
-    .then(response => response.json())
-    .then(data => {
-      console.log(data);
-    })
-    .catch(error => {
-      console.log('Error:', error);
-    });
-  };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const deleteTodos = () => {
-    fetch('https://playground.4geeks.com/todo/users/Cyb3rV', {
-      'method': 'DELETE',
-      'Content-Type': "application/json"
-    })
-    .then(response => response.json())
-    .then(data => {
-      console.log(data);
-      // Limpiar la lista después de eliminar todas las tareas
-      //setTasksList([]);
-    })
-    .catch(error => {
-      console.log('Error:', error);
-    });
-  };
+    useEffect(() => {
+      console.log(tasks);
+    },[tasks])
 
     return (
-        <TaskContext.Provider value={{tasks, taskActions}}>{children}</TaskContext.Provider>
-    );
+      <TaskContext.Provider value={{tasks, taskActions, userCreated, setUserCreated}}>{children}</TaskContext.Provider>
+  );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export default TaskContext;
